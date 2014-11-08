@@ -20,6 +20,7 @@ o, err := ds.Get("foo")
 
 // wait for ttl
 o, err := ds.Get("foo")
+
 // will return ErrKeyDoesNotExist as it has expired
 
 ```

@@ -10,6 +10,7 @@ import (
 	log "github.com/Sirupsen/logrus"
 	"github.com/ehazlett/docker-grid/common"
 	"github.com/ehazlett/docker-grid/utils/datastore"
+	"github.com/gorilla/mux"
 	"github.com/samalba/dockerclient"
 )
 
@@ -71,9 +72,13 @@ func (c *Controller) Run() error {
 		return err
 	}
 
-	http.HandleFunc("/", c.ApiIndex)
-	http.HandleFunc("/containers/json", c.ApiListContainers)
-	http.HandleFunc("/v1.15/containers/json", c.ApiListContainers)
+	r := mux.NewRouter()
+	r.HandleFunc("/", c.apiIndex)
+	r.HandleFunc("/grid/nodes", c.apiNodeList)
+	r.HandleFunc("/grid/nodes/{nodeId}", c.apiNodeDetails)
+	r.HandleFunc("/containers/json", c.apiListContainers)
+	r.HandleFunc("/v1.15/containers/json", c.apiListContainers)
+	http.Handle("/", r)
 	go http.ListenAndServe(c.ApiAddr, nil)
 
 	log.Infof("grid controller listening on %s", c.Addr)
@@ -88,12 +93,45 @@ func (c *Controller) Run() error {
 	}
 }
 
-// API emulation
-func (c *Controller) ApiIndex(w http.ResponseWriter, r *http.Request) {
+// API
+func (c *Controller) apiIndex(w http.ResponseWriter, r *http.Request) {
 	w.Write([]byte("docker grid controller\n"))
 }
 
-func (c *Controller) ApiListContainers(w http.ResponseWriter, r *http.Request) {
+func (c *Controller) apiNodeList(w http.ResponseWriter, r *http.Request) {
+	data := c.datastore.Items()
+	var nodes []*common.NodeData
+	for _, v := range data {
+		n := &common.NodeData{
+			NodeId: v.Data.(*common.NodeData).NodeId,
+			Cpus:   v.Data.(*common.NodeData).Cpus,
+			Memory: v.Data.(*common.NodeData).Memory,
+		}
+		nodes = append(nodes, n)
+	}
+	w.Header().Set("content-type", "application/json")
+	if err := json.NewEncoder(w).Encode(nodes); err != nil {
+		log.Warnf("error encoding node list: %s", err)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+	}
+}
+
+func (c *Controller) apiNodeDetails(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	nodeId := vars["nodeId"]
+	d, err := c.datastore.Get(nodeId)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusNotFound)
+	}
+	w.Header().Set("content-type", "application/json")
+	if err := json.NewEncoder(w).Encode(d); err != nil {
+		log.Warnf("error encoding node details: %s", err)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+	}
+}
+
+// Docker API compatibility
+func (c *Controller) apiListContainers(w http.ResponseWriter, r *http.Request) {
 	var containers []dockerclient.Container
 	for _, v := range c.datastore.Items() {
 		containers = append(containers, v.Data.(*common.NodeData).Containers...)
@@ -101,6 +139,6 @@ func (c *Controller) ApiListContainers(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("content-type", "application/json")
 	if err := json.NewEncoder(w).Encode(containers); err != nil {
 		log.Warnf("error encoding container response: %s", err)
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
 }
