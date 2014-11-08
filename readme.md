@@ -6,7 +6,7 @@ This is a lightweight "discovery" and light orchestration service.  Basically it
 
 The controller also has a lightweight aggregation service where it will take all of the nodes and aggregate them into a single Docker "grid".  You can access the "grid" using the standard Docker client.
 
-# Grid Agent
+# Grid Node
 This is a simple Go application that queries the client Docker daemon to execute containers.  It also reports basic metadata like client resource limits and generalized location.
 
 # Running Containers
