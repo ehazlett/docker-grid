@@ -1,3 +1,4 @@
 *.swp
 *.swo
 docker-grid
+Godeps/_workspace

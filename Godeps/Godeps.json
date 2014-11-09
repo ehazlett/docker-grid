@@ -1,0 +1,32 @@
+{
+	"ImportPath": "github.com/ehazlett/docker-grid",
+	"GoVersion": "go1.3.3",
+	"Deps": [
+		{
+			"ImportPath": "github.com/Sirupsen/logrus",
+			"Comment": "v0.6.0-5-gf92b795",
+			"Rev": "f92b7950b372b1db80bd3527e4d40e42555fe6c2"
+		},
+		{
+			"ImportPath": "github.com/codegangsta/cli",
+			"Comment": "1.2.0-26-gf7ebb76",
+			"Rev": "f7ebb761e83e21225d1d8954fde853bf8edd46c4"
+		},
+		{
+			"ImportPath": "github.com/gorilla/context",
+			"Rev": "14f550f51af52180c2eefed15e5fd18d63c0a64a"
+		},
+		{
+			"ImportPath": "github.com/gorilla/mux",
+			"Rev": "e444e69cbd2e2e3e0749a2f3c717cec491552bbf"
+		},
+		{
+			"ImportPath": "github.com/samalba/dockerclient",
+			"Rev": "a79250ae5dc96514cf6b06b8a8b7481164da7d4d"
+		},
+		{
+			"ImportPath": "github.com/twinj/uuid",
+			"Rev": "4d772442af203e27723acc7d1eea6c93cd319c57"
+		}
+	]
+}
