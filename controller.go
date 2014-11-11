@@ -16,11 +16,6 @@ var controllerCommand = cli.Command{
 			Value: ":8080",
 			Usage: "controller listen address",
 		},
-		cli.StringFlag{
-			Name:  "api-listen, a",
-			Value: ":8081",
-			Usage: "docker api listen address",
-		},
 		cli.IntFlag{
 			Name:  "ttl, t",
 			Value: 500,
@@ -34,7 +29,7 @@ var controllerCommand = cli.Command{
 }
 
 func controllerAction(c *cli.Context) {
-	controller, err := controller.NewController(c.String("listen"), c.String("api-listen"), c.Int("ttl"), c.Bool("debug"))
+	controller, err := controller.NewController(c.String("listen"), c.Int("ttl"), c.Bool("debug"))
 	if err != nil {
 		log.Fatalf("error creating controller: %s", err)
 	}

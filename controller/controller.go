@@ -1,15 +1,15 @@
 package controller
 
 import (
-	"encoding/gob"
 	"encoding/json"
-	"net"
 	"net/http"
 	"time"
 
+	"code.google.com/p/go-uuid/uuid"
 	log "github.com/Sirupsen/logrus"
 	"github.com/ehazlett/docker-grid/common"
 	"github.com/ehazlett/docker-grid/utils/datastore"
+	fifo "github.com/foize/go.fifo"
 	"github.com/gorilla/mux"
 	"github.com/samalba/dockerclient"
 )
@@ -23,79 +23,81 @@ type (
 
 	Controller struct {
 		Addr      string
-		ApiAddr   string
 		Nodes     []*Node
 		TTL       int
 		datastore *datastore.Datastore
+		queue     *fifo.Queue
 	}
 )
 
-func NewController(addr string, apiAddr string, ttl int, enableDebug bool) (*Controller, error) {
+func NewController(addr string, ttl int, enableDebug bool) (*Controller, error) {
 	ds, err := datastore.New(time.Millisecond * time.Duration(ttl))
 	if err != nil {
 		return nil, err
 	}
+	queue := fifo.NewQueue()
 	controller := &Controller{
 		Addr:      addr,
-		ApiAddr:   apiAddr,
 		TTL:       ttl,
 		datastore: ds,
+		queue:     queue,
 	}
 	if enableDebug {
 		log.SetLevel(log.DebugLevel)
 	}
-	controller.init()
 	return controller, nil
 }
 
-func (c *Controller) init() {
-	gob.Register(common.NodeData{})
-	gob.Register([]dockerclient.Container{})
-}
-
-func (c *Controller) handleConnection(conn net.Conn) {
-	log.Debugf("heartbeat from %s", conn.RemoteAddr())
-	dec := gob.NewDecoder(conn)
-	data := &common.NodeData{}
-	if err := dec.Decode(data); err != nil {
-		log.Warnf("error decoding data: %s", err)
-		return
+func (c *Controller) ListContainers() []dockerclient.Container {
+	var containers []dockerclient.Container
+	for _, v := range c.datastore.Items() {
+		containers = append(containers, v.Data.(*common.NodeData).Containers...)
 	}
-
-	// update datastore
-	c.datastore.Set(data.NodeId, data)
+	return containers
 }
 
 func (c *Controller) Run() error {
-	listener, err := net.Listen("tcp", c.Addr)
-	if err != nil {
-		return err
-	}
-
 	r := mux.NewRouter()
-	r.HandleFunc("/", c.apiIndex)
-	r.HandleFunc("/grid/nodes", c.apiNodeList)
-	r.HandleFunc("/grid/nodes/{nodeId}", c.apiNodeDetails)
-	r.HandleFunc("/containers/json", c.apiListContainers)
-	r.HandleFunc("/v1.15/containers/json", c.apiListContainers)
+	r.HandleFunc("/", c.apiIndex).Methods("GET")
+	r.HandleFunc("/grid/nodes", c.apiNodeList).Methods("GET")
+	r.HandleFunc("/grid/nodes/{nodeId}", c.apiNodeDetails).Methods("GET")
+	r.HandleFunc("/grid/queue/next", c.apiQueueNext).Methods("GET")
+	r.HandleFunc("/grid/nodes/{nodeId}/update", c.apiNodeUpdate).Methods("POST")
+	r.HandleFunc("/{apiVersion}/containers/json", c.apiListContainers).Methods("GET")
+	r.HandleFunc("/{apiVersion}/containers/create", c.apiCreateContainer).Methods("POST")
+	r.HandleFunc("/{apiVersion}/containers/{containerId}/attach", c.apiAttachContainer).Methods("POST")
+	r.HandleFunc("/{apiVersion}/containers/{containerId}/start", c.apiStartContainer).Methods("POST")
+	r.HandleFunc("/{apiVersion}/containers/{containerId}/wait", c.apiWaitContainer).Methods("POST")
+	r.HandleFunc("/{apiVersion}/containers/{containerId}/json", c.apiContainerJson).Methods("GET")
 	http.Handle("/", r)
-	go http.ListenAndServe(c.ApiAddr, nil)
 
 	log.Infof("grid controller listening on %s", c.Addr)
 
-	for {
-		conn, err := listener.Accept()
-		if err != nil {
-			log.Warnf("client connection error: %s", err)
-			continue
-		}
-		go c.handleConnection(conn)
-	}
+	return http.ListenAndServe(c.Addr, c.logRequest(http.DefaultServeMux))
+}
+
+func (c *Controller) logRequest(handler http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		log.Debugf("%s %s %s", r.RemoteAddr, r.Method, r.URL)
+		handler.ServeHTTP(w, r)
+	})
 }
 
 // API
 func (c *Controller) apiIndex(w http.ResponseWriter, r *http.Request) {
 	w.Write([]byte("docker grid controller\n"))
+}
+
+func (c *Controller) apiNodeUpdate(w http.ResponseWriter, r *http.Request) {
+	data := &common.NodeData{}
+	if err := json.NewDecoder(r.Body).Decode(&data); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	// update datastore
+	c.datastore.Set(data.NodeId, data)
+	w.WriteHeader(http.StatusOK)
 }
 
 func (c *Controller) apiNodeList(w http.ResponseWriter, r *http.Request) {
@@ -122,6 +124,7 @@ func (c *Controller) apiNodeDetails(w http.ResponseWriter, r *http.Request) {
 	d, err := c.datastore.Get(nodeId)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusNotFound)
+		return
 	}
 	w.Header().Set("content-type", "application/json")
 	if err := json.NewEncoder(w).Encode(d); err != nil {
@@ -130,15 +133,86 @@ func (c *Controller) apiNodeDetails(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+func (c *Controller) apiQueueNext(w http.ResponseWriter, r *http.Request) {
+	job := c.queue.Next()
+	if job == nil {
+		job = &common.Job{}
+	}
+
+	if job.(*common.Job).Id != "" {
+		log.Infof("processing job: id=%s image=%s", job.(*common.Job).Id, job.(*common.Job).ContainerConfig.Image)
+	}
+
+	w.Header().Set("content-type", "application/json")
+	if err := json.NewEncoder(w).Encode(job); err != nil {
+		log.Warnf("error encoding job: %s", err)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+	}
+}
+
 // Docker API compatibility
 func (c *Controller) apiListContainers(w http.ResponseWriter, r *http.Request) {
-	var containers []dockerclient.Container
-	for _, v := range c.datastore.Items() {
-		containers = append(containers, v.Data.(*common.NodeData).Containers...)
-	}
+	containers := c.ListContainers()
 	w.Header().Set("content-type", "application/json")
 	if err := json.NewEncoder(w).Encode(containers); err != nil {
 		log.Warnf("error encoding container response: %s", err)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
+}
+
+func (c *Controller) apiCreateContainer(w http.ResponseWriter, r *http.Request) {
+	var containerConfig dockerclient.ContainerConfig
+
+	if err := json.NewDecoder(r.Body).Decode(&containerConfig); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	// queue job
+	job := &common.Job{
+		Id:              uuid.New(),
+		Date:            time.Now(),
+		ContainerConfig: &containerConfig,
+	}
+	c.queue.Add(job)
+
+	log.Infof("queue job: id=%s image=%s", job.Id, job.ContainerConfig.Image)
+
+	log.Debugf("pending jobs: %d", c.queue.Len())
+
+	// wait for response
+
+	resp := &dockerclient.RespContainersCreate{
+		Id:       "pending",
+		Warnings: []string{},
+	}
+	w.Header().Set("content-type", "application/json")
+	if err := json.NewEncoder(w).Encode(resp); err != nil {
+		log.Warnf("error encoding container response: %s", err)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+	}
+}
+
+func (c *Controller) apiAttachContainer(w http.ResponseWriter, r *http.Request) {
+	// HACK: hijack response
+}
+
+func (c *Controller) apiStartContainer(w http.ResponseWriter, r *http.Request) {
+	// HACK: hijack response
+}
+
+func (c *Controller) apiWaitContainer(w http.ResponseWriter, r *http.Request) {
+	// HACK: hijack response
+	resp := &common.WaitResponse{
+		StatusCode: 0,
+	}
+	w.Header().Set("content-type", "application/json")
+	if err := json.NewEncoder(w).Encode(resp); err != nil {
+		log.Warnf("error encoding container wait response: %s", err)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+	}
+}
+
+func (c *Controller) apiContainerJson(w http.ResponseWriter, r *http.Request) {
+	// HACK: hijack response
 }

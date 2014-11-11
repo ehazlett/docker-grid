@@ -17,7 +17,7 @@ var nodeCommand = cli.Command{
 	Flags: []cli.Flag{
 		cli.StringFlag{
 			Name:  "controller, c",
-			Value: "127.0.0.1:8080",
+			Value: "http://127.0.0.1:8080",
 			Usage: "URL to controller",
 		},
 		cli.StringFlag{

@@ -1,9 +1,14 @@
 package node
 
 import (
+	"bytes"
 	"crypto/tls"
-	"encoding/gob"
+	"encoding/json"
+	"errors"
+	"fmt"
+	"io/ioutil"
 	"net"
+	"net/http"
 	"time"
 
 	log "github.com/Sirupsen/logrus"
@@ -41,27 +46,63 @@ func NewNode(controllerUrl string, dockerUrl string, tlsConfig *tls.Config, cpus
 		Cpus:              cpus,
 		Memory:            memory,
 	}
-	node.init()
 	return node, nil
 }
 
-func (node *Node) init() {
-	gob.Register(common.NodeData{})
-	gob.Register([]dockerclient.Container{})
+func (node *Node) buildUrl(path string) string {
+	return fmt.Sprintf("%s%s", node.controllerUrl, path)
 }
 
-func (node *Node) Send(data interface{}) error {
-	c, err := net.Dial("tcp", node.controllerUrl)
+func (node *Node) doRequest(path string, method string, expectedStatus int, b []byte) (*http.Response, error) {
+	url := node.buildUrl(path)
+	buf := bytes.NewBuffer(b)
+	req, err := http.NewRequest(method, url, buf)
 	if err != nil {
-		return err
+		return nil, err
+
+	}
+	req.Header.Set("User-Agent", "grid-node")
+
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return nil, err
+
 	}
 
-	enc := gob.NewEncoder(c)
-	if err := enc.Encode(data); err != nil {
-		return err
+	if resp.StatusCode != expectedStatus {
+		c, err := ioutil.ReadAll(resp.Body)
+		if err != nil {
+			return nil, err
+
+		}
+		return resp, errors.New(string(c))
+
+	}
+	return resp, nil
+
+}
+
+func (node *Node) sendContainers() {
+	containers, err := node.ListContainers(false)
+	if err != nil {
+		log.Warnf("error listing containers: %s", err)
 	}
 
-	return nil
+	d := &common.NodeData{
+		NodeId:     node.Id,
+		Cpus:       node.Cpus,
+		Memory:     node.Memory,
+		Containers: containers,
+	}
+
+	b, err := json.Marshal(d)
+	if err != nil {
+		log.Fatalf("error marshaling containers: %s", err)
+	}
+
+	if _, err := node.doRequest(fmt.Sprintf("/grid/nodes/%s/update", node.Id), "POST", 200, b); err != nil {
+		log.Warnf("error sending heartbeat: %s", err)
+	}
 }
 
 func (node *Node) Pulse() {
@@ -69,21 +110,7 @@ func (node *Node) Pulse() {
 
 	go func() {
 		for _ = range ticker.C {
-			containers, err := node.ListContainers(false)
-			if err != nil {
-				log.Warnf("error listing containers: %s", err)
-			}
-
-			d := &common.NodeData{
-				NodeId:     node.Id,
-				Cpus:       node.Cpus,
-				Memory:     node.Memory,
-				Containers: containers,
-			}
-
-			if err := node.Send(d); err != nil {
-				log.Warnf("error sending data: %s", err)
-			}
+			node.sendContainers()
 		}
 	}()
 

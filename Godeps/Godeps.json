@@ -3,6 +3,11 @@
 	"GoVersion": "go1.3.3",
 	"Deps": [
 		{
+			"ImportPath": "code.google.com/p/go-uuid/uuid",
+			"Comment": "null-12",
+			"Rev": "7dda39b2e7d5e265014674c5af696ba4186679e9"
+		},
+		{
 			"ImportPath": "github.com/Sirupsen/logrus",
 			"Comment": "v0.6.0-5-gf92b795",
 			"Rev": "f92b7950b372b1db80bd3527e4d40e42555fe6c2"
@@ -11,6 +16,10 @@
 			"ImportPath": "github.com/codegangsta/cli",
 			"Comment": "1.2.0-26-gf7ebb76",
 			"Rev": "f7ebb761e83e21225d1d8954fde853bf8edd46c4"
+		},
+		{
+			"ImportPath": "github.com/foize/go.fifo",
+			"Rev": "3a04cfeec12143459af4c62b147b365e950051c9"
 		},
 		{
 			"ImportPath": "github.com/gorilla/context",
@@ -22,7 +31,19 @@
 		},
 		{
 			"ImportPath": "github.com/samalba/dockerclient",
-			"Rev": "a79250ae5dc96514cf6b06b8a8b7481164da7d4d"
+			"Rev": "c12b6f75105945357b1b495104bcd489e83d03ce"
+		},
+		{
+			"ImportPath": "github.com/stretchr/objx",
+			"Rev": "cbeaeb16a013161a98496fad62933b1d21786672"
+		},
+		{
+			"ImportPath": "github.com/stretchr/testify/assert",
+			"Rev": "d6577e08ec30538639ac0ea38b562b6f250e9055"
+		},
+		{
+			"ImportPath": "github.com/stretchr/testify/mock",
+			"Rev": "d6577e08ec30538639ac0ea38b562b6f250e9055"
 		},
 		{
 			"ImportPath": "github.com/twinj/uuid",
