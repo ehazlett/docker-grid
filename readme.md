@@ -9,7 +9,7 @@ The controller also has a lightweight aggregation service where it will take all
 # Grid Node
 This queries the client Docker daemon to execute containers.  It also reports basic metadata like client resource limits and generalized location.
 
-# Running Containers (not yet implemented)
+# Running Containers
 To run containers on the grid, you simply use the Docker client.  The difference is you target (-H) a grid controller.
 
 All containers run on the grid have an environment variable injected to allow for simple "filtering" when the node reports.  It will only report containers running that have this variable.  That way your other containers are not reported.
