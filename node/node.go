@@ -9,6 +9,7 @@ import (
 	"io/ioutil"
 	"net"
 	"net/http"
+	"strings"
 	"time"
 
 	log "github.com/Sirupsen/logrus"
@@ -29,7 +30,11 @@ type (
 	}
 )
 
-func NewNode(controllerUrl string, dockerUrl string, tlsConfig *tls.Config, cpus float64, memory float64, heartbeatInterval int) (*Node, error) {
+func NewNode(controllerUrl string, dockerUrl string, tlsConfig *tls.Config, cpus float64, memory float64, heartbeatInterval int, enableDebug bool) (*Node, error) {
+	if enableDebug {
+		log.SetLevel(log.DebugLevel)
+	}
+
 	u := uuid.NewV4()
 	id := uuid.Formatter(u, uuid.CleanHyphen)
 
@@ -83,9 +88,28 @@ func (node *Node) doRequest(path string, method string, expectedStatus int, b []
 }
 
 func (node *Node) sendContainers() {
-	containers, err := node.ListContainers(false)
+	allContainers, err := node.ListContainers(false)
 	if err != nil {
 		log.Warnf("error listing containers: %s", err)
+	}
+
+	var containers []*dockerclient.Container
+	// filter non-grid containers
+	for _, cnt := range allContainers {
+		c := cnt
+		info, err := node.client.InspectContainer(c.Id)
+		if err != nil {
+			log.Warnf("unable to inspect container: %s", c.Id)
+			continue
+		}
+
+		for _, e := range info.Config.Env {
+			k := strings.Split(e, "=")
+			if k[0] == "DOCKER_GRID" {
+				containers = append(containers, &c)
+				break
+			}
+		}
 	}
 
 	d := &common.NodeData{
@@ -120,7 +144,15 @@ func (node *Node) checkQueue() {
 
 	if job.Id != "" {
 		log.Infof("processing job: id=%s image=%s", job.Id, job.ContainerConfig.Image)
-		containerId, err := node.createContainer(job.ContainerConfig)
+		// TODO: inject "grid" env var
+		cntCfg := job.ContainerConfig
+		if cntCfg.Env == nil {
+			env := []string{"DOCKER_GRID=true"}
+			cntCfg.Env = env
+		} else {
+			cntCfg.Env = append(cntCfg.Env, "DOCKER_GRID=true")
+		}
+		containerId, err := node.createContainer(cntCfg)
 		result := &common.JobResult{
 			JobId:       job.Id,
 			NodeId:      node.Id,

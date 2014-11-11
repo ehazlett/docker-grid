@@ -55,8 +55,8 @@ func NewController(addr string, ttl int, enableDebug bool) (*Controller, error) 
 	return controller, nil
 }
 
-func (c *Controller) ListContainers() []dockerclient.Container {
-	var containers []dockerclient.Container
+func (c *Controller) ListContainers() []*dockerclient.Container {
+	var containers []*dockerclient.Container
 	for _, v := range c.datastore.Items() {
 		containers = append(containers, v.Data.(*common.NodeData).Containers...)
 	}

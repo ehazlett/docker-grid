@@ -40,6 +40,10 @@ var nodeCommand = cli.Command{
 			Value: 500,
 			Usage: "node heartbeat interval (in milliseconds)",
 		},
+		cli.BoolFlag{
+			Name:  "debug",
+			Usage: "enable debug logging",
+		},
 	},
 }
 
@@ -52,7 +56,7 @@ func waitForInterrupt() {
 }
 
 func nodeAction(c *cli.Context) {
-	node, err := node.NewNode(c.String("controller"), c.String("docker"), nil, c.Float64("cpus"), c.Float64("memory"), c.Int("heartbeat"))
+	node, err := node.NewNode(c.String("controller"), c.String("docker"), nil, c.Float64("cpus"), c.Float64("memory"), c.Int("heartbeat"), c.Bool("debug"))
 	if err != nil {
 		log.Fatalf("error connecting to docker: %s", err)
 	}
