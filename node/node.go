@@ -105,12 +105,64 @@ func (node *Node) sendContainers() {
 	}
 }
 
+func (node *Node) checkQueue() {
+	resp, err := node.doRequest("/grid/queue/next", "GET", 200, nil)
+	if err != nil {
+		log.Warnf("error checking queue: %s", err)
+		return
+	}
+
+	var job common.Job
+	if err := json.NewDecoder(resp.Body).Decode(&job); err != nil {
+		log.Warnf("error decoding job: %s", err)
+		return
+	}
+
+	if job.Id != "" {
+		log.Infof("processing job: id=%s image=%s", job.Id, job.ContainerConfig.Image)
+		containerId, err := node.createContainer(job.ContainerConfig)
+		result := &common.JobResult{
+			JobId:       job.Id,
+			NodeId:      node.Id,
+			ContainerId: containerId,
+		}
+		hostCfg := job.ContainerConfig.HostConfig
+		if err := node.client.StartContainer(containerId, &hostCfg); err != nil {
+			log.Warnf("error starting container: %s", err)
+		}
+
+		info, err := node.client.InspectContainer(containerId)
+		if err != nil {
+			log.Warnf("error inspecting container: %s", err)
+		}
+
+		result.ContainerInfo = info
+
+		if err != nil {
+			result.Warnings = []string{err.Error()}
+		}
+
+		b, err := json.Marshal(result)
+		if err != nil {
+			log.Fatalf("error marshaling job result: %s", err)
+		}
+		if _, err := node.doRequest("/grid/queue/result", "POST", 200, b); err != nil {
+			log.Warnf("error sending job result: %s", err)
+		}
+	}
+}
+
+func (node *Node) createContainer(config *dockerclient.ContainerConfig) (string, error) {
+	return node.client.CreateContainer(config, "")
+}
+
 func (node *Node) Pulse() {
 	ticker := time.NewTicker(time.Millisecond * time.Duration(node.heartbeatInterval))
 
 	go func() {
 		for _ = range ticker.C {
 			node.sendContainers()
+			node.checkQueue()
 		}
 	}()
 

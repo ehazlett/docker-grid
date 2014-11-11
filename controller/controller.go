@@ -3,6 +3,7 @@ package controller
 import (
 	"encoding/json"
 	"net/http"
+	"strings"
 	"time"
 
 	"code.google.com/p/go-uuid/uuid"
@@ -22,11 +23,12 @@ type (
 	}
 
 	Controller struct {
-		Addr      string
-		Nodes     []*Node
-		TTL       int
-		datastore *datastore.Datastore
-		queue     *fifo.Queue
+		Addr               string
+		Nodes              []*Node
+		TTL                int
+		datastore          *datastore.Datastore
+		jobResultDatastore *datastore.Datastore
+		queue              *fifo.Queue
 	}
 )
 
@@ -35,12 +37,17 @@ func NewController(addr string, ttl int, enableDebug bool) (*Controller, error) 
 	if err != nil {
 		return nil, err
 	}
+	jobResultDs, err := datastore.New(time.Millisecond * time.Duration(ttl))
+	if err != nil {
+		return nil, err
+	}
 	queue := fifo.NewQueue()
 	controller := &Controller{
-		Addr:      addr,
-		TTL:       ttl,
-		datastore: ds,
-		queue:     queue,
+		Addr:               addr,
+		TTL:                ttl,
+		datastore:          ds,
+		jobResultDatastore: jobResultDs,
+		queue:              queue,
 	}
 	if enableDebug {
 		log.SetLevel(log.DebugLevel)
@@ -62,6 +69,7 @@ func (c *Controller) Run() error {
 	r.HandleFunc("/grid/nodes", c.apiNodeList).Methods("GET")
 	r.HandleFunc("/grid/nodes/{nodeId}", c.apiNodeDetails).Methods("GET")
 	r.HandleFunc("/grid/queue/next", c.apiQueueNext).Methods("GET")
+	r.HandleFunc("/grid/queue/result", c.apiQueueResult).Methods("POST")
 	r.HandleFunc("/grid/nodes/{nodeId}/update", c.apiNodeUpdate).Methods("POST")
 	r.HandleFunc("/{apiVersion}/containers/json", c.apiListContainers).Methods("GET")
 	r.HandleFunc("/{apiVersion}/containers/create", c.apiCreateContainer).Methods("POST")
@@ -69,6 +77,7 @@ func (c *Controller) Run() error {
 	r.HandleFunc("/{apiVersion}/containers/{containerId}/start", c.apiStartContainer).Methods("POST")
 	r.HandleFunc("/{apiVersion}/containers/{containerId}/wait", c.apiWaitContainer).Methods("POST")
 	r.HandleFunc("/{apiVersion}/containers/{containerId}/json", c.apiContainerJson).Methods("GET")
+	r.HandleFunc("/{apiVersion}/containers/{containerId}", c.apiDeleteContainer).Methods("DELETE")
 	http.Handle("/", r)
 
 	log.Infof("grid controller listening on %s", c.Addr)
@@ -140,7 +149,7 @@ func (c *Controller) apiQueueNext(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if job.(*common.Job).Id != "" {
-		log.Infof("processing job: id=%s image=%s", job.(*common.Job).Id, job.(*common.Job).ContainerConfig.Image)
+		log.Infof("sending job: id=%s image=%s node=%s", job.(*common.Job).Id, job.(*common.Job).ContainerConfig.Image, r.RemoteAddr)
 	}
 
 	w.Header().Set("content-type", "application/json")
@@ -148,6 +157,18 @@ func (c *Controller) apiQueueNext(w http.ResponseWriter, r *http.Request) {
 		log.Warnf("error encoding job: %s", err)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
+}
+
+func (c *Controller) apiQueueResult(w http.ResponseWriter, r *http.Request) {
+	result := &common.JobResult{}
+	if err := json.NewDecoder(r.Body).Decode(&result); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	c.jobResultDatastore.Set(result.JobId, result)
+	log.Infof("received job result: %s", result.JobId)
+	w.WriteHeader(http.StatusOK)
 }
 
 // Docker API compatibility
@@ -186,6 +207,19 @@ func (c *Controller) apiCreateContainer(w http.ResponseWriter, r *http.Request) 
 		Id:       "pending",
 		Warnings: []string{},
 	}
+
+	for {
+		rs, err := c.jobResultDatastore.Get(job.Id)
+		if err != nil {
+			time.Sleep(500)
+			continue
+		}
+		result := rs.(*datastore.Item).Data.(*common.JobResult)
+		resp.Id = result.ContainerId
+		resp.Warnings = result.Warnings
+		break
+	}
+
 	w.Header().Set("content-type", "application/json")
 	if err := json.NewEncoder(w).Encode(resp); err != nil {
 		log.Warnf("error encoding container response: %s", err)
@@ -199,12 +233,13 @@ func (c *Controller) apiAttachContainer(w http.ResponseWriter, r *http.Request) 
 
 func (c *Controller) apiStartContainer(w http.ResponseWriter, r *http.Request) {
 	// HACK: hijack response
+	w.WriteHeader(http.StatusNoContent)
 }
 
 func (c *Controller) apiWaitContainer(w http.ResponseWriter, r *http.Request) {
 	// HACK: hijack response
 	resp := &common.WaitResponse{
-		StatusCode: 0,
+		StatusCode: 0, // TODO: get actual status code from JobResult
 	}
 	w.Header().Set("content-type", "application/json")
 	if err := json.NewEncoder(w).Encode(resp); err != nil {
@@ -215,4 +250,23 @@ func (c *Controller) apiWaitContainer(w http.ResponseWriter, r *http.Request) {
 
 func (c *Controller) apiContainerJson(w http.ResponseWriter, r *http.Request) {
 	// HACK: hijack response
+	vars := mux.Vars(r)
+	containerId := vars["containerId"]
+	containerInfo := &dockerclient.ContainerInfo{}
+	for _, v := range c.jobResultDatastore.Items() {
+		result := v.Data.(*common.JobResult)
+		if strings.Index(result.ContainerId, containerId) == 0 {
+			containerInfo = result.ContainerInfo
+		}
+	}
+	w.Header().Set("content-type", "application/json")
+	if err := json.NewEncoder(w).Encode(containerInfo); err != nil {
+		log.Warnf("error encoding container config: %s", err)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+	}
+}
+
+func (c *Controller) apiDeleteContainer(w http.ResponseWriter, r *http.Request) {
+	// HACK: hijack response
+	w.WriteHeader(http.StatusNoContent)
 }
