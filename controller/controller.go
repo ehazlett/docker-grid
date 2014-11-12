@@ -91,6 +91,7 @@ func (c *Controller) Run() error {
 	r.HandleFunc("/grid/queue/result", c.apiQueueResult).Methods("POST")
 	r.HandleFunc("/grid/nodes/{nodeId}/update", c.apiNodeUpdate).Methods("POST")
 	r.HandleFunc("/{apiVersion}/containers/json", c.apiListContainers).Methods("GET")
+	r.HandleFunc("/containers/json", c.apiListContainers).Methods("GET")
 	r.HandleFunc("/{apiVersion}/containers/create", c.apiCreateContainer).Methods("POST")
 	r.HandleFunc("/{apiVersion}/containers/{containerId}/attach", c.apiAttachContainer).Methods("POST")
 	r.HandleFunc("/{apiVersion}/containers/{containerId}/start", c.apiStartContainer).Methods("POST")
