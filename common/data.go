@@ -13,6 +13,7 @@ type (
 		Memory     float64                   `json:"memory,omitempty"`
 		Containers []*dockerclient.Container `json:"containers,omitempty"`
 		Version    string                    `json:"version,omitempty"`
+		IP         string                    `json:"ip,omitempty"`
 	}
 
 	Job struct {

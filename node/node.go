@@ -18,7 +18,7 @@ import (
 	"github.com/twinj/uuid"
 )
 
-const VERSION = "0.0.2"
+const VERSION = "0.0.3"
 
 type (
 	Node struct {
@@ -27,12 +27,13 @@ type (
 		conn              *net.Conn
 		controllerUrl     string
 		heartbeatInterval int
+		ip                string
 		Cpus              float64
 		Memory            float64
 	}
 )
 
-func NewNode(controllerUrl string, dockerUrl string, tlsConfig *tls.Config, cpus float64, memory float64, heartbeatInterval int, enableDebug bool) (*Node, error) {
+func NewNode(controllerUrl string, dockerUrl string, tlsConfig *tls.Config, cpus float64, memory float64, heartbeatInterval int, ip string, enableDebug bool) (*Node, error) {
 	if enableDebug {
 		log.SetLevel(log.DebugLevel)
 	}
@@ -50,6 +51,7 @@ func NewNode(controllerUrl string, dockerUrl string, tlsConfig *tls.Config, cpus
 		client:            client,
 		controllerUrl:     controllerUrl,
 		heartbeatInterval: heartbeatInterval,
+		ip:                ip,
 		Cpus:              cpus,
 		Memory:            memory,
 	}
@@ -120,6 +122,7 @@ func (node *Node) sendNodeInfo() {
 		Memory:     node.Memory,
 		Containers: containers,
 		Version:    VERSION,
+		IP:         node.ip,
 	}
 
 	b, err := json.Marshal(d)
@@ -207,7 +210,7 @@ func (node *Node) createContainer(config *dockerclient.ContainerConfig) (string,
 	return id, err
 }
 
-func (node *Node) Pulse() {
+func (node *Node) Run() {
 	ticker := time.NewTicker(time.Millisecond * time.Duration(node.heartbeatInterval))
 
 	go func() {

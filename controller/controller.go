@@ -16,7 +16,7 @@ import (
 	"github.com/samalba/dockerclient"
 )
 
-const VERSION = "0.0.2"
+const VERSION = "0.0.3"
 
 type (
 	Node struct {
@@ -61,7 +61,23 @@ func NewController(addr string, ttl int, enableDebug bool) (*Controller, error) 
 func (c *Controller) ListContainers() []*dockerclient.Container {
 	var containers []*dockerclient.Container
 	for _, v := range c.datastore.Items() {
-		containers = append(containers, v.Data.(*common.NodeData).Containers...)
+		nodeData := v.Data.(*common.NodeData)
+		for _, cnt := range nodeData.Containers {
+			ports := []dockerclient.Port{}
+
+			// adjust ports to show node ip
+			for _, p := range cnt.Ports {
+				port := p
+				if p.PublicPort != 0 {
+					port.IP = nodeData.IP
+				}
+				ports = append(ports, port)
+			}
+
+			cnt.Ports = ports
+
+			containers = append(containers, cnt)
+		}
 	}
 	return containers
 }
@@ -122,6 +138,7 @@ func (c *Controller) apiNodeList(w http.ResponseWriter, r *http.Request) {
 			Cpus:    v.Data.(*common.NodeData).Cpus,
 			Memory:  v.Data.(*common.NodeData).Memory,
 			Version: v.Data.(*common.NodeData).Version,
+			IP:      v.Data.(*common.NodeData).IP,
 		}
 		nodes = append(nodes, n)
 	}
