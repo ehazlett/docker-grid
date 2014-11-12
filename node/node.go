@@ -153,6 +153,9 @@ func (node *Node) checkQueue() {
 			cntCfg.Env = append(cntCfg.Env, "DOCKER_GRID=true")
 		}
 		containerId, err := node.createContainer(cntCfg)
+		if err != nil {
+			log.Warnf("error creating container: %s")
+		}
 		result := &common.JobResult{
 			JobId:       job.Id,
 			NodeId:      node.Id,
@@ -185,7 +188,20 @@ func (node *Node) checkQueue() {
 }
 
 func (node *Node) createContainer(config *dockerclient.ContainerConfig) (string, error) {
-	return node.client.CreateContainer(config, "")
+	id, err := node.client.CreateContainer(config, "")
+	if err != nil {
+		if err.Error() == "Not found" {
+			log.Debugf("attempting to pull image %s: ", config.Image)
+			if imgErr := node.client.PullImage(config.Image); imgErr != nil {
+				log.Warnf("error pulling image: %s", imgErr)
+				return "", imgErr
+			}
+			id, err = node.client.CreateContainer(config, "")
+		} else {
+			log.Warnf("error creating container: %s", err)
+		}
+	}
+	return id, err
 }
 
 func (node *Node) Pulse() {
