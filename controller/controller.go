@@ -268,5 +268,5 @@ func (c *Controller) apiContainerJson(w http.ResponseWriter, r *http.Request) {
 
 func (c *Controller) apiDeleteContainer(w http.ResponseWriter, r *http.Request) {
 	// HACK: hijack response
-	w.WriteHeader(http.StatusNoContent)
+	w.WriteHeader(http.StatusForbidden)
 }
