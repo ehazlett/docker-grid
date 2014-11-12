@@ -28,6 +28,6 @@ Start a single controller.
 ## Node
 Start one or more nodes.
 
-Note: this will attempt to detect your machine IP (to properly show exposed ports) -- you can alternatively use `-i <IP>` to override
+Note: this will attempt to detect your machine IP (to properly show exposed ports) -- you can alternatively use `-i <IP>` to override -- then you do not need `--net=host`.
 
 `docker run -d -v /var/run/docker.sock:/var/run/docker.sock --net=host ehazlett/docker-grid node -c http://<controller-host-or-ip>:8080`
