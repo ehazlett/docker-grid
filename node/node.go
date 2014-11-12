@@ -220,7 +220,7 @@ func (node *Node) Run() {
 		}
 	}()
 
-	log.Infof("node started: version=%s id=%s cpus=%.2f memory=%.2f heartbeat=%dms", VERSION, node.Id, node.Cpus, node.Memory, node.heartbeatInterval)
+	log.Infof("node started: version=%s id=%s cpus=%.2f memory=%.2f heartbeat=%dms ip=%s", VERSION, node.Id, node.Cpus, node.Memory, node.heartbeatInterval, node.ip)
 }
 
 func (node *Node) ListContainers(all bool) ([]dockerclient.Container, error) {
