@@ -16,3 +16,16 @@ All containers run on the grid have an environment variable injected to allow fo
 
 # Security
 There is very little security.  This is meant to be a public service.  However, with the container "filtering", the grid will only report containers that are run using the grid service.
+
+# Usage
+This is just an experiment so do not use in any production-like environment.
+
+## Controller
+Start a single controller.
+
+`docker run -d -p 8080:8080 ehazlett/docker-grid controller`
+
+## Node
+Start one or more nodes.
+
+`docker run -d -v /var/run/docker.sock:/var/run/docker.sock --net=host ehazlett/docker-grid node -c http://<controller-host-or-ip>:8080`
