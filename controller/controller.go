@@ -2,6 +2,7 @@ package controller
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"strings"
 	"time"
@@ -14,6 +15,8 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/samalba/dockerclient"
 )
+
+const VERSION = "0.0.2"
 
 type (
 	Node struct {
@@ -80,7 +83,7 @@ func (c *Controller) Run() error {
 	r.HandleFunc("/{apiVersion}/containers/{containerId}", c.apiDeleteContainer).Methods("DELETE")
 	http.Handle("/", r)
 
-	log.Infof("grid controller listening on %s", c.Addr)
+	log.Infof("grid controller started: version=%s port=%s", VERSION, c.Addr)
 
 	return http.ListenAndServe(c.Addr, c.logRequest(http.DefaultServeMux))
 }
@@ -94,7 +97,8 @@ func (c *Controller) logRequest(handler http.Handler) http.Handler {
 
 // API
 func (c *Controller) apiIndex(w http.ResponseWriter, r *http.Request) {
-	w.Write([]byte("docker grid controller\n"))
+	v := fmt.Sprintf("docker grid controller %s\n", VERSION)
+	w.Write([]byte(v))
 }
 
 func (c *Controller) apiNodeUpdate(w http.ResponseWriter, r *http.Request) {
@@ -114,9 +118,10 @@ func (c *Controller) apiNodeList(w http.ResponseWriter, r *http.Request) {
 	var nodes []*common.NodeData
 	for _, v := range data {
 		n := &common.NodeData{
-			NodeId: v.Data.(*common.NodeData).NodeId,
-			Cpus:   v.Data.(*common.NodeData).Cpus,
-			Memory: v.Data.(*common.NodeData).Memory,
+			NodeId:  v.Data.(*common.NodeData).NodeId,
+			Cpus:    v.Data.(*common.NodeData).Cpus,
+			Memory:  v.Data.(*common.NodeData).Memory,
+			Version: v.Data.(*common.NodeData).Version,
 		}
 		nodes = append(nodes, n)
 	}

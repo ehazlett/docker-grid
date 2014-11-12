@@ -18,6 +18,8 @@ import (
 	"github.com/twinj/uuid"
 )
 
+const VERSION = "0.0.2"
+
 type (
 	Node struct {
 		Id                string
@@ -87,7 +89,7 @@ func (node *Node) doRequest(path string, method string, expectedStatus int, b []
 
 }
 
-func (node *Node) sendContainers() {
+func (node *Node) sendNodeInfo() {
 	allContainers, err := node.ListContainers(false)
 	if err != nil {
 		log.Warnf("error listing containers: %s", err)
@@ -117,6 +119,7 @@ func (node *Node) sendContainers() {
 		Cpus:       node.Cpus,
 		Memory:     node.Memory,
 		Containers: containers,
+		Version:    VERSION,
 	}
 
 	b, err := json.Marshal(d)
@@ -209,12 +212,12 @@ func (node *Node) Pulse() {
 
 	go func() {
 		for _ = range ticker.C {
-			node.sendContainers()
+			node.sendNodeInfo()
 			node.checkQueue()
 		}
 	}()
 
-	log.Infof("node started: id=%s cpus=%.2f memory=%.2f heartbeat=%dms", node.Id, node.Cpus, node.Memory, node.heartbeatInterval)
+	log.Infof("node started: version=%s id=%s cpus=%.2f memory=%.2f heartbeat=%dms", VERSION, node.Id, node.Cpus, node.Memory, node.heartbeatInterval)
 }
 
 func (node *Node) ListContainers(all bool) ([]dockerclient.Container, error) {

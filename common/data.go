@@ -12,6 +12,7 @@ type (
 		Cpus       float64                   `json:"cpus,omitempty"`
 		Memory     float64                   `json:"memory,omitempty"`
 		Containers []*dockerclient.Container `json:"containers,omitempty"`
+		Version    string                    `json:"version,omitempty"`
 	}
 
 	Job struct {
