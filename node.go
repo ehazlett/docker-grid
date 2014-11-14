@@ -2,10 +2,7 @@ package main
 
 import (
 	"net"
-	"os"
-	"os/signal"
 	"strings"
-	"syscall"
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/codegangsta/cli"
@@ -52,14 +49,6 @@ var nodeCommand = cli.Command{
 			Usage: "enable debug logging",
 		},
 	},
-}
-
-func waitForInterrupt() {
-	sigChan := make(chan os.Signal, 1)
-	signal.Notify(sigChan, os.Interrupt, syscall.SIGTERM, syscall.SIGQUIT)
-	for _ = range sigChan {
-		os.Exit(0)
-	}
 }
 
 func nodeAction(c *cli.Context) {
