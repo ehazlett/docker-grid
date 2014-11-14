@@ -212,10 +212,17 @@ func (c *Controller) apiCreateContainer(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
+	q := r.URL.Query()
+	containerName := ""
+	if name, ok := q["name"]; ok {
+		containerName = name[0]
+	}
+
 	// queue job
 	job := &common.Job{
 		Id:              uuid.New(),
 		Date:            time.Now(),
+		ContainerName:   containerName,
 		ContainerConfig: &containerConfig,
 	}
 	c.queue.Add(job)
@@ -290,6 +297,7 @@ func (c *Controller) apiContainerJson(w http.ResponseWriter, r *http.Request) {
 }
 
 func (c *Controller) apiDeleteContainer(w http.ResponseWriter, r *http.Request) {
+	log.Debugf("delete from %s", r.RemoteAddr)
 	// HACK: hijack response
 	w.WriteHeader(http.StatusForbidden)
 }
