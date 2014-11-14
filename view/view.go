@@ -102,11 +102,11 @@ func (v *View) refresh() {
 		fmt.Println("|")
 	} else {
 		t := tablewriter.NewWriter(os.Stdout)
-		t.SetHeader([]string{"ID", "CPUs", "Memory", "Version", "IP"})
-		for _, node := range nodes {
+		t.SetHeader([]string{"", "ID", "CPUs", "Memory", "Version", "IP"})
+		for i, node := range nodes {
 			cpus := fmt.Sprintf("%.2f", node.Cpus)
 			memory := fmt.Sprintf("%.2f", node.Memory)
-			t.Append([]string{node.NodeId, cpus, memory, node.Version, node.IP})
+			t.Append([]string{fmt.Sprintf("%d", i), node.NodeId, cpus, memory, node.Version, node.IP})
 		}
 		t.Render()
 	}
