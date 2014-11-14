@@ -1,6 +1,8 @@
 # Docker Grid
 This is an experiment in a public Docker service.  Node containers are launched on multiple Docker hosts and then the standard Docker client can run containers that are placed on the grid.  Everything runs completely in Docker.  There are no external services needed.
 
+[![Docker Grid](http://img.youtube.com/vi/1ZXiyuJoURM/0.jpg)](http://www.youtube.com/watch?v=1ZXiyuJoURM)
+
 # Grid Controller
 This is a lightweight "discovery" and light orchestration service.  Basically it just knows what machines exist and how to schedule simple launch tasks that are ran (containers).
 
