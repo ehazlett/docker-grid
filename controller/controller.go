@@ -16,7 +16,7 @@ import (
 	"github.com/samalba/dockerclient"
 )
 
-const VERSION = "0.0.3"
+const VERSION = "0.0.4"
 
 type (
 	Node struct {

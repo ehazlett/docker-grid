@@ -18,7 +18,7 @@ import (
 	"github.com/twinj/uuid"
 )
 
-const VERSION = "0.0.3"
+const VERSION = "0.0.4"
 
 type (
 	Node struct {
