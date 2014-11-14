@@ -13,6 +13,7 @@ import (
 	log "github.com/Sirupsen/logrus"
 	"github.com/ehazlett/docker-grid/common"
 	"github.com/olekukonko/tablewriter"
+	"github.com/wsxiaoys/terminal/color"
 )
 
 type View struct {
@@ -96,18 +97,23 @@ func (v *View) refresh() {
 
 	fmt.Print("\033[2J")
 	fmt.Print("\033[H")
-	fmt.Printf("| Docker Grid: %s\n|\n", v.controllerUrl)
+	fmt.Print("|")
+	color.Printf("@b Docker Grid: %s\n", v.controllerUrl)
+	fmt.Print("|\n")
+
 	if len(nodes) == 0 {
 		fmt.Println("| ----- No connected nodes -----")
 		fmt.Println("|")
 	} else {
 		t := tablewriter.NewWriter(os.Stdout)
-		t.SetHeader([]string{"", "ID", "CPUs", "Memory", "Version", "IP"})
+		t.SetHeader([]string{"", "ID", "CPUs", "Memory", "Version", "IP", "CONTAINERS"})
+
 		for i, node := range nodes {
 			cpus := fmt.Sprintf("%.2f", node.Cpus)
 			memory := fmt.Sprintf("%.2f", node.Memory)
-			t.Append([]string{fmt.Sprintf("%d", i), node.NodeId, cpus, memory, node.Version, node.IP})
+			t.Append([]string{fmt.Sprintf("%d", i), node.NodeId, cpus, memory, node.Version, node.IP, fmt.Sprintf("%d", len(node.Containers))})
 		}
+
 		t.Render()
 	}
 }

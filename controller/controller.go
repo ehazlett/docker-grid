@@ -134,12 +134,14 @@ func (c *Controller) apiNodeList(w http.ResponseWriter, r *http.Request) {
 	data := c.datastore.Items()
 	var nodes []*common.NodeData
 	for _, v := range data {
+		nd := v.Data.(*common.NodeData)
 		n := &common.NodeData{
-			NodeId:  v.Data.(*common.NodeData).NodeId,
-			Cpus:    v.Data.(*common.NodeData).Cpus,
-			Memory:  v.Data.(*common.NodeData).Memory,
-			Version: v.Data.(*common.NodeData).Version,
-			IP:      v.Data.(*common.NodeData).IP,
+			NodeId:     nd.NodeId,
+			Cpus:       nd.Cpus,
+			Memory:     nd.Memory,
+			Version:    nd.Version,
+			IP:         nd.IP,
+			Containers: nd.Containers,
 		}
 		nodes = append(nodes, n)
 	}
