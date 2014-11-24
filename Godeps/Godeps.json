@@ -30,6 +30,10 @@
 			"Rev": "e444e69cbd2e2e3e0749a2f3c717cec491552bbf"
 		},
 		{
+			"ImportPath": "github.com/olekukonko/tablewriter",
+			"Rev": "37f85ed61c00a85092550bf43fc51087a10475fd"
+		},
+		{
 			"ImportPath": "github.com/samalba/dockerclient",
 			"Rev": "c12b6f75105945357b1b495104bcd489e83d03ce"
 		},
@@ -48,6 +52,10 @@
 		{
 			"ImportPath": "github.com/twinj/uuid",
 			"Rev": "4d772442af203e27723acc7d1eea6c93cd319c57"
+		},
+		{
+			"ImportPath": "github.com/wsxiaoys/terminal/color",
+			"Rev": "9dcaf1d63119a8ac00eef82270eaef08b6aa2328"
 		}
 	]
 }
