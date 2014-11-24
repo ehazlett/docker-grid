@@ -45,6 +45,10 @@ var nodeCommand = cli.Command{
 			Usage: "machine IP",
 		},
 		cli.BoolFlag{
+			Name:  "grid-containers, g",
+			Usage: "show only grid containers",
+		},
+		cli.BoolFlag{
 			Name:  "debug",
 			Usage: "enable debug logging",
 		},
@@ -99,7 +103,7 @@ func nodeAction(c *cli.Context) {
 
 	}
 
-	node, err := node.NewNode(c.String("controller"), c.String("docker"), nil, c.Float64("cpus"), c.Float64("memory"), c.Int("heartbeat"), nodeIp, c.Bool("debug"))
+	node, err := node.NewNode(c.String("controller"), c.String("docker"), nil, c.Float64("cpus"), c.Float64("memory"), c.Int("heartbeat"), nodeIp, c.Bool("grid-containers"), c.Bool("debug"))
 	if err != nil {
 		log.Fatalf("error connecting to docker: %s", err)
 	}

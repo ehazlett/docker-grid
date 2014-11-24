@@ -8,6 +8,7 @@ import (
 	"io/ioutil"
 	"net/http"
 	"os"
+	"sort"
 	"time"
 
 	log "github.com/Sirupsen/logrus"
@@ -95,6 +96,8 @@ func (v *View) refresh() {
 		log.Fatalf("unable to get nodes: %s", err)
 	}
 
+	sort.Sort(common.NodesById{nodes})
+
 	fmt.Print("\033[2J")
 	fmt.Print("\033[H")
 	fmt.Print("|")
@@ -111,6 +114,12 @@ func (v *View) refresh() {
 		for i, node := range nodes {
 			cpus := fmt.Sprintf("%.2f", node.Cpus)
 			memory := fmt.Sprintf("%.2f", node.Memory)
+			if node.Cpus == 0.0 {
+				cpus = ""
+			}
+			if node.Memory == 0.0 {
+				memory = ""
+			}
 			t.Append([]string{fmt.Sprintf("%d", i), node.NodeId, cpus, memory, node.Version, node.IP, fmt.Sprintf("%d", len(node.Containers))})
 		}
 

@@ -22,18 +22,19 @@ const VERSION = "0.0.4"
 
 type (
 	Node struct {
-		Id                string
-		client            *dockerclient.DockerClient
-		conn              *net.Conn
-		controllerUrl     string
-		heartbeatInterval int
-		ip                string
-		Cpus              float64
-		Memory            float64
+		Id                     string
+		client                 *dockerclient.DockerClient
+		conn                   *net.Conn
+		controllerUrl          string
+		heartbeatInterval      int
+		showOnlyGridContainers bool
+		ip                     string
+		Cpus                   float64
+		Memory                 float64
 	}
 )
 
-func NewNode(controllerUrl string, dockerUrl string, tlsConfig *tls.Config, cpus float64, memory float64, heartbeatInterval int, ip string, enableDebug bool) (*Node, error) {
+func NewNode(controllerUrl string, dockerUrl string, tlsConfig *tls.Config, cpus float64, memory float64, heartbeatInterval int, ip string, showOnlyGridContainers bool, enableDebug bool) (*Node, error) {
 	if enableDebug {
 		log.SetLevel(log.DebugLevel)
 	}
@@ -47,13 +48,14 @@ func NewNode(controllerUrl string, dockerUrl string, tlsConfig *tls.Config, cpus
 	}
 
 	node := &Node{
-		Id:                id,
-		client:            client,
-		controllerUrl:     controllerUrl,
-		heartbeatInterval: heartbeatInterval,
-		ip:                ip,
-		Cpus:              cpus,
-		Memory:            memory,
+		Id:                     id,
+		client:                 client,
+		controllerUrl:          controllerUrl,
+		heartbeatInterval:      heartbeatInterval,
+		showOnlyGridContainers: showOnlyGridContainers,
+		ip:     ip,
+		Cpus:   cpus,
+		Memory: memory,
 	}
 	return node, nil
 }
@@ -107,12 +109,17 @@ func (node *Node) sendNodeInfo() {
 			continue
 		}
 
-		for _, e := range info.Config.Env {
-			k := strings.Split(e, "=")
-			if k[0] == "DOCKER_GRID" {
-				containers = append(containers, &c)
-				break
+		// filter if needed
+		if node.showOnlyGridContainers {
+			for _, e := range info.Config.Env {
+				k := strings.Split(e, "=")
+				if k[0] == "DOCKER_GRID" {
+					containers = append(containers, &c)
+					break
+				}
 			}
+		} else {
+			containers = append(containers, &c)
 		}
 	}
 

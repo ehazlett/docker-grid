@@ -13,4 +13,17 @@ type (
 		Version    string                    `json:"version,omitempty"`
 		IP         string                    `json:"ip,omitempty"`
 	}
+
+	Nodes []*NodeData
+
+	NodesById struct {
+		Nodes
+	}
 )
+
+func (n Nodes) Len() int      { return len(n) }
+func (n Nodes) Swap(i, j int) { n[i], n[j] = n[j], n[i] }
+
+func (n NodesById) Less(i, j int) bool {
+	return n.Nodes[i].NodeId < n.Nodes[j].NodeId
+}
