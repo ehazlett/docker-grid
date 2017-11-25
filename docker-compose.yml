@@ -4,5 +4,5 @@ services:
     image: gr1dd/daas
     container_name: daas
     ports:
-      - "80:80"
-      - "80:80/udp"
+      - "8080:8080"
+      - "8080:8080/udp"
