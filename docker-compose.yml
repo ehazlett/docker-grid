@@ -1,0 +1,8 @@
+version: '2'
+services:
+  daas:
+    image: gr1dd/daas
+    container_name: daas
+    ports:
+      - "80:80"
+      - "80:80/udp"
