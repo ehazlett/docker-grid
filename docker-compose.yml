@@ -1,8 +1,8 @@
 version: '2'
 services:
-  daas:
-    image: gr1dd/daas
-    container_name: daas
+  nemogrid:
+    image: gr1dd/nemogrid
+    container_name: nemogrid
     ports:
       - "8080:8080"
       - "8080:8080/udp"
